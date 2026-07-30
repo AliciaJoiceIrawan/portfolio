@@ -145,14 +145,21 @@ export default function ContactPage() {
             {/* Sosial Media */}
             <div className="p-6 rounded-2xl bg-gray-900 border border-gray-800">
               <h3 className="text-white font-semibold mb-4">Social Media</h3>
-              <div className="flex gap-3">
-                {["GitHub", "LinkedIn", "Instagram"].map((social) => (
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { name: "GitHub", url: "https://github.com/AliciaJoiceIrawan/portfolio" },
+                  { name: "LinkedIn", url: "https://www.linkedin.com/in/alicia-joice-irawan-r-873abb413/?skipRedirect=true" },
+                  { name: "Instagram (Storyteller)", url: "https://www.instagram.com/storytellerx2026?igsh=MW9vMGo3Zm9jZ2JoYQ==" },
+                  { name: "Instagram (Personal)", url: "https://www.instagram.com/dlazlox?igsh=cnMwOXJqdmZ1MHhr" },
+                ].map((social) => (
                   <a
-                    key={social}
-                    href="#"
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 text-sm hover:text-white hover:border-gray-600 transition-all"
                   >
-                    {social}
+                    {social.name}
                   </a>
                 ))}
               </div>
