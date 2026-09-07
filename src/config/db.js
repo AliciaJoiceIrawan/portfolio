@@ -1,11 +1,11 @@
 const mysql = require("mysql2");
-require("dotenv").config();
 
+// Konfigurasi langsung Laragon (Tanpa .env)
 const dbConfig = {
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "portfolio_db"
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "portofolio_db"
 };
 
 const db = mysql.createConnection({
@@ -26,7 +26,7 @@ const createTablesIfNeeded = () => {
             live_url VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
-        `CREATE TABLE IF NOT EXISTS messages (
+        `CREATE TABLE IF NOT EXISTS contacts (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
@@ -55,8 +55,8 @@ const createTablesIfNeeded = () => {
             title VARCHAR(255) NOT NULL,
             issuer VARCHAR(255) NOT NULL,
             date VARCHAR(100),
-            credentialId VARCHAR(255),
-            verificationUrl VARCHAR(255),
+            credential_id VARCHAR(255),
+            verification_url VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
         `CREATE TABLE IF NOT EXISTS testimonials (
@@ -90,6 +90,16 @@ const seedInitialData = () => {
                 VALUES
                     ('SmpAlarafBone', 'Web Dev', 'Project grup sekolah beda jurusan pertama.', '', 'https://github.com/AliciaJoiceIrawan/SmpAlarafBone', '#'),
                     ('Personal Portofolio', 'Web Dev', 'A responsive and modern portfolio website to showcase my work and skills.', '', 'https://github.com/AliciaJoiceIrawan/portfolio', '#')
+            `
+        },
+        {
+            table: "contacts",
+            countQuery: "SELECT COUNT(*) AS total FROM contacts",
+            insertQuery: `
+                INSERT INTO contacts (name, email, subject, message)
+                VALUES
+                    ('John Doe', 'john@example.com', 'Tawaran Project', 'Halo Alicia, saya tertarik untuk bekerja sama dalam pembuatan website.'),
+                    ('Jane Smith', 'jane@example.com', 'Tanya Portfolio', 'Halo, portofolionya keren sekali!')
             `
         },
         {
@@ -133,7 +143,7 @@ const seedInitialData = () => {
             table: "certificates",
             countQuery: "SELECT COUNT(*) AS total FROM certificates",
             insertQuery: `
-                INSERT INTO certificates (title, issuer, date, credentialId, verificationUrl)
+                INSERT INTO certificates (title, issuer, date, credential_id, verification_url)
                 VALUES
                     ('AIClassASEAN.org', 'Dicoding Indonesia', '2025-07-25', 'DICODING-109283', 'https://www.aiclassasean.org/')
             `
@@ -151,9 +161,7 @@ const seedInitialData = () => {
     ];
 
     const runSeed = (index) => {
-        if (index >= queries.length) {
-            return;
-        }
+        if (index >= queries.length) return;
 
         const { table, countQuery, insertQuery } = queries[index];
 
@@ -165,30 +173,6 @@ const seedInitialData = () => {
 
             const total = Number(countResults[0]?.total || 0);
 
-            if (table === "certificates" && total > 1) {
-                db.query("DELETE FROM certificates WHERE id > 1", (deleteErr) => {
-                    if (deleteErr) {
-                        console.error("Failed to remove duplicate certificates:", deleteErr.message);
-                    } else {
-                        console.log("Removed duplicate certificate records, kept only one.");
-                    }
-                    return runSeed(index + 1);
-                });
-                return;
-            }
-
-            if (table === "testimonials" && total > 2) {
-                db.query("DELETE FROM testimonials WHERE id > 2", (deleteErr) => {
-                    if (deleteErr) {
-                        console.error("Failed to remove duplicate testimonials:", deleteErr.message);
-                    } else {
-                        console.log("Removed duplicate testimonial records, kept only two.");
-                    }
-                    return runSeed(index + 1);
-                });
-                return;
-            }
-
             if (total > 0) {
                 return runSeed(index + 1);
             }
@@ -199,7 +183,6 @@ const seedInitialData = () => {
                 } else {
                     console.log(`Seeded default data for ${table}`);
                 }
-
                 runSeed(index + 1);
             });
         });
@@ -223,11 +206,6 @@ const initializeDatabase = () => {
 
             console.log(`Connected to MySQL database: ${dbConfig.database}`);
             createTablesIfNeeded();
-            db.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE`, (alterErr) => {
-                if (alterErr) {
-                    console.error("Failed to ensure messages.is_read exists:", alterErr.message);
-                }
-            });
             setTimeout(seedInitialData, 500);
         });
     });
