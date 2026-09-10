@@ -14,7 +14,7 @@ const db = mysql.createConnection({
     password: dbConfig.password
 });
 
-const createTablesIfNeeded = () => {
+const createTablesIfNeeded = (callback) => {
     const tableQueries = [
         `CREATE TABLE IF NOT EXISTS projects (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -26,7 +26,7 @@ const createTablesIfNeeded = () => {
             live_url VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
-        `CREATE TABLE IF NOT EXISTS contacts (
+        `CREATE TABLE IF NOT EXISTS messages (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
@@ -71,12 +71,47 @@ const createTablesIfNeeded = () => {
         )`
     ];
 
-    tableQueries.forEach((query) => {
-        db.query(query, (err) => {
+    const createNextTable = (index) => {
+        if (index >= tableQueries.length) return callback();
+
+        db.query(tableQueries[index], (err) => {
             if (err) {
                 console.error("Table creation failed:", err.message);
             }
+            createNextTable(index + 1);
         });
+    };
+
+    createNextTable(0);
+};
+
+const removeDuplicateSkills = (callback) => {
+    const deleteQuery = `
+        DELETE duplicate
+        FROM skills AS duplicate
+        INNER JOIN skills AS original
+            ON duplicate.skill_group_id = original.skill_group_id
+           AND duplicate.name = original.name
+           AND duplicate.level = original.level
+           AND duplicate.percentage = original.percentage
+           AND duplicate.id > original.id
+    `;
+
+    db.query(deleteQuery, (err) => {
+        if (err) {
+            console.error("Failed to remove duplicate skills:", err.message);
+            return callback();
+        }
+
+        db.query(
+            `ALTER TABLE skills ADD UNIQUE KEY unique_skill (skill_group_id, name, level, percentage)`,
+            (indexErr) => {
+                if (indexErr && indexErr.code !== "ER_DUP_KEYNAME") {
+                    console.error("Failed to protect skills from duplicates:", indexErr.message);
+                }
+                callback();
+            }
+        );
     });
 };
 
@@ -88,15 +123,14 @@ const seedInitialData = () => {
             insertQuery: `
                 INSERT INTO projects (title, category, description, image_url, github_url, live_url)
                 VALUES
-                    ('SmpAlarafBone', 'Web Dev', 'Project grup sekolah beda jurusan pertama.', '', 'https://github.com/AliciaJoiceIrawan/SmpAlarafBone', '#'),
-                    ('Personal Portofolio', 'Web Dev', 'A responsive and modern portfolio website to showcase my work and skills.', '', 'https://github.com/AliciaJoiceIrawan/portfolio', '#')
+                    ('SmpAlarafBone', 'Web Dev', 'Project grup sekolah beda jurusan pertama.', '', 'https://github.com/AliciaJoiceIrawan/SmpAlarafBone', 'http://localhost:3000')
             `
         },
         {
-            table: "contacts",
-            countQuery: "SELECT COUNT(*) AS total FROM contacts",
+            table: "messages",
+            countQuery: "SELECT COUNT(*) AS total FROM messages",
             insertQuery: `
-                INSERT INTO contacts (name, email, subject, message)
+                INSERT INTO messages (name, email, subject, message)
                 VALUES
                     ('John Doe', 'john@example.com', 'Tawaran Project', 'Halo Alicia, saya tertarik untuk bekerja sama dalam pembuatan website.'),
                     ('Jane Smith', 'jane@example.com', 'Tanya Portfolio', 'Halo, portofolionya keren sekali!')
@@ -191,6 +225,7 @@ const seedInitialData = () => {
     runSeed(0);
 };
 
+
 const initializeDatabase = () => {
     db.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``, (err) => {
         if (err) {
@@ -205,8 +240,11 @@ const initializeDatabase = () => {
             }
 
             console.log(`Connected to MySQL database: ${dbConfig.database}`);
-            createTablesIfNeeded();
-            setTimeout(seedInitialData, 500);
+            createTablesIfNeeded(() => {
+                removeDuplicateSkills(() => {
+                    seedInitialData();
+                });
+            });
         });
     });
 };
